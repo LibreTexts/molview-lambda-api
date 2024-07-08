@@ -2,6 +2,11 @@ from dotenv import load_dotenv
 from os import environ
 import json
 from rdkit import Chem
+from rdkit import RDLogger
+
+
+RDLogger.DisableLog('rdApp.*')
+
 
 bond_type = {
     'single': Chem.rdchem.BondType.SINGLE,
