@@ -24,6 +24,13 @@ def check_authorization(provided_key: str) -> bool:
     return provided_key == allowed_key
 
 
+def read_vec2(data) -> tuple[float, float]:
+    if isinstance(data, list):
+        return (data[0] / 100, data[1] / 100)
+    else:
+        return (data['x'] / 100, data['y'] / 100)
+
+
 def read_mol(data) -> Chem.rdchem.RWMol:
     mol = Chem.rdchem.RWMol()
 
@@ -39,14 +46,23 @@ def read_mol(data) -> Chem.rdchem.RWMol:
             bond['to'],
             bond_type[bond['type']])
 
+    mol = mol.GetMol()
+    conf = Chem.Conformer(mol.GetNumAtoms())
+    for i, atom in enumerate(data['atoms']):
+        conf.SetAtomPosition(i, read_vec2(atom['position']) + (0,))
+    mol.AddConformer(conf)
+
     return mol
 
 
 def compare(data1, data2) -> bool:
+    # TODO: Graph isomorphism; https://stackoverflow.com/a/60211992
     mol1 = read_mol(data1)
     mol2 = read_mol(data2)
-    smiles1 = Chem.rdmolfiles.MolToSmiles(mol1)
-    smiles2 = Chem.rdmolfiles.MolToSmiles(mol2)
+    Chem.AssignStereochemistryFrom3D(mol1)
+    Chem.AssignStereochemistryFrom3D(mol2)
+    smiles1 = Chem.rdmolfiles.MolToSmiles(mol1, isomericSmiles=True)
+    smiles2 = Chem.rdmolfiles.MolToSmiles(mol2, isomericSmiles=True)
     return smiles1 == smiles2
 
 
