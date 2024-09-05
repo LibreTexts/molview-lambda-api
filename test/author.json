@@ -1,0 +1,166 @@
+{
+  "atoms": [
+    {
+      "position": [
+        262.8753393556538,
+        -286.41251822574054
+      ],
+      "symbol": "C"
+    },
+    {
+      "position": [
+        262.8753393556538,
+        -186.41251822574054
+      ],
+      "symbol": "Cl",
+      "non_bonded_ve": 6
+    },
+    {
+      "position": [
+        162.8753393556538,
+        -286.41251822574054
+      ],
+      "symbol": "Cl",
+      "non_bonded_ve": 6
+    },
+    {
+      "position": [
+        262.8753393556539,
+        -386.41251822574054
+      ],
+      "symbol": "Cl",
+      "non_bonded_ve": 6
+    },
+    {
+      "position": [
+        362.8753393556538,
+        -286.41251822574054
+      ],
+      "symbol": "Cl",
+      "non_bonded_ve": 6
+    },
+    {
+      "position": [
+        259.1637786975749,
+        -9.757175350946909
+      ],
+      "symbol": "O",
+      "non_bonded_ve": 4
+    },
+    {
+      "position": [
+        345.76631907601876,
+        40.24282464905311
+      ],
+      "symbol": "H"
+    },
+    {
+      "position": [
+        172.561238319131,
+        40.24282464905305
+      ],
+      "symbol": "H"
+    },
+    {
+      "position": [
+        586.3367587591716,
+        -392.0070138651242
+      ],
+      "symbol": "F",
+      "non_bonded_ve": 6
+    },
+    {
+      "position": [
+        586.3367587591716,
+        -292.0070138651242
+      ],
+      "symbol": "H"
+    },
+    {
+      "position": [
+        678.4055370679628,
+        -8.93513268747563
+      ],
+      "symbol": "N",
+      "formal_charge": 1
+    },
+    {
+      "position": [
+        778.4055370679628,
+        -8.93513268747563
+      ],
+      "symbol": "O",
+      "non_bonded_ve": 4
+    },
+    {
+      "position": [
+        678.4055370679628,
+        -108.93513268747563
+      ],
+      "symbol": "O",
+      "formal_charge": -1,
+      "non_bonded_ve": 6
+    },
+    {
+      "position": [
+        578.4055370679628,
+        -8.935132687475642
+      ],
+      "symbol": "O",
+      "formal_charge": -1,
+      "non_bonded_ve": 6
+    }
+  ],
+  "bonds": [
+    {
+      "type": "single",
+      "from": 0,
+      "to": 1
+    },
+    {
+      "type": "single",
+      "from": 0,
+      "to": 2
+    },
+    {
+      "type": "single",
+      "from": 0,
+      "to": 3
+    },
+    {
+      "type": "single",
+      "from": 0,
+      "to": 4
+    },
+    {
+      "type": "single",
+      "from": 5,
+      "to": 6
+    },
+    {
+      "type": "single",
+      "from": 5,
+      "to": 7
+    },
+    {
+      "type": "single",
+      "from": 8,
+      "to": 9
+    },
+    {
+      "type": "double",
+      "from": 10,
+      "to": 11
+    },
+    {
+      "type": "single",
+      "from": 10,
+      "to": 12
+    },
+    {
+      "type": "single",
+      "from": 10,
+      "to": 13
+    }
+  ]
+}
