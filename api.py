@@ -1,6 +1,7 @@
-from dotenv import load_dotenv
-from os import environ
 import json
+import networkx as nx
+from os import environ
+from dotenv import load_dotenv
 from rdkit import Chem
 from rdkit import RDLogger
 
@@ -31,43 +32,94 @@ def read_vec2(data) -> tuple[float, float]:
         return (data['x'] / 100, data['y'] / 100)
 
 
-def read_mol(data) -> Chem.rdchem.RWMol:
-    mol = Chem.rdchem.RWMol()
+def json_to_graph(data) -> nx.Graph:
+    g = nx.Graph()
 
-    for atom in data['atoms']:
-        a = Chem.rdchem.Atom(atom['symbol'])
-        if 'formal_charge' in atom:
-            a.SetFormalCharge(atom['formal_charge'])
-        mol.AddAtom(a)
+    for v, atom in enumerate(data['atoms']):
+        g.add_node(v, **{
+            'symbol': atom['symbol'],
+            'position': read_vec2(atom['position']),
+            'formal_charge': atom.get('formal_charge', 0),
+            'non_bonded_ve': atom.get('non_bonded_ve', 0)
+        })
 
     for bond in data['bonds']:
-        mol.AddBond(
-            bond['from'],
-            bond['to'],
-            bond_type[bond['type']])
+        g.add_edge(bond['from'], bond['to'], type=bond['type'])
 
-    mol = mol.GetMol()
+    return g
+
+
+def graph_to_mol(g: nx.Graph) -> Chem.rdchem.RWMol:
+    mol = Chem.rdchem.RWMol()
+    index = {}
+
+    for v in g.nodes:
+        a = Chem.rdchem.Atom(g.nodes[v]['symbol'])
+        a.SetFormalCharge(g.nodes[v]['formal_charge'])
+        index[v] = mol.AddAtom(a)
+
+    for u, v in g.edges:
+        mol.AddBond(index[u], index[v], bond_type[g.edges[(u,v)]['type']])
+
+    # Build 2D conformer.
     conf = Chem.Conformer(mol.GetNumAtoms())
-    for i, atom in enumerate(data['atoms']):
-        conf.SetAtomPosition(i, read_vec2(atom['position']) + (0,))
+    for v in g.nodes:
+        # Note that we add a Z-coordinate with value 0.
+        conf.SetAtomPosition(index[v], g.nodes[v]['position'] + (0,))
+
+    # Assign conformer and compute stereochemistry.
+    mol = mol.GetMol()
     mol.AddConformer(conf)
+    Chem.AssignStereochemistryFrom3D(mol)
 
     return mol
 
 
-def compare(data1, data2) -> bool:
-    # TODO: Graph isomorphism; https://stackoverflow.com/a/60211992
-    mol1 = read_mol(data1)
-    mol2 = read_mol(data2)
-    Chem.AssignStereochemistryFrom3D(mol1)
-    Chem.AssignStereochemistryFrom3D(mol2)
-    smiles1 = Chem.rdmolfiles.MolToSmiles(mol1, isomericSmiles=True)
-    smiles2 = Chem.rdmolfiles.MolToSmiles(mol2, isomericSmiles=True)
-    return smiles1 == smiles2
+def json_to_mol(data) -> Chem.rdchem.RWMol:
+   return graph_to_mol(json_to_graph(data))
+
+
+def _node_match(v1, v2):
+    props = ['symbol', 'formal_charge', 'non_bonded_ve']
+    return all(map(lambda p: v1[p] == v2[p], props))
+
+
+def _edge_match(e1, e2):
+    return e1['type'] == e2['type']
+
+
+def _graph_to_smiles(g: nx.Graph) -> str:
+    mol = graph_to_mol(g)
+    return Chem.rdmolfiles.MolToSmiles(mol, isomericSmiles=True)
+
+
+def compare_components(g1: nx.Graph, g2: nx.Graph) -> bool:
+    return (
+        nx.is_isomorphic(g1, g2, _node_match, _edge_match) and
+        _graph_to_smiles(g1) == _graph_to_smiles(g2))
+
+
+def compare(diagram1, diagram2) -> bool:
+    g1 = json_to_graph(diagram1)
+    g2 = json_to_graph(diagram2)
+    cs1 = list(map(lambda c: g1.subgraph(c), nx.connected_components(g1)))
+    cs2 = list(map(lambda c: g2.subgraph(c), nx.connected_components(g2)))
+
+    # Check if every component in g1 matches a unique component in g2.
+    for c1 in cs1:
+        match = (i for i, c2 in enumerate(cs2) if compare_components(c1, c2))
+        index = next(match, None)
+        if index is None:
+            return False
+        else:
+            # Every component can only be matched once.
+            cs2.pop(index)
+
+    return len(cs2) == 0
 
 
 def validate(diagram) -> bool:
-    mol = read_mol(diagram)
+    mol = json_to_mol(diagram)
     try:
         Chem.SanitizeMol(mol)
         return True
