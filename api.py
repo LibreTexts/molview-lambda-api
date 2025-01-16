@@ -94,8 +94,13 @@ def json_to_mol(data) -> Chem.rdchem.RWMol:
 
 
 def _node_match(v1, v2):
-    props = ['symbol', 'formal_charge', 'non_bonded_ve']
-    return all(map(lambda p: v1[p] == v2[p], props))
+    props = [
+        ['symbol', ''],
+        ['formal_charge', 0],
+        ['non_bonded_ve', 0],
+        ['mark', -1]
+    ]
+    return all(map(lambda p: v1.get(p[0], p[1]) == v2.get(p[0], p[1]), props))
 
 
 def _edge_match(e1, e2):
