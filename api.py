@@ -108,12 +108,20 @@ def _edge_match(e1, e2):
 
 
 def _graph_to_smiles(g: nx.Graph) -> str:
-    mol = graph_to_mol(g)
+    mol = Chem.RemoveHs(graph_to_mol(g))
     return Chem.rdmolfiles.MolToSmiles(mol, isomericSmiles=True)
 
 
-def compare_components(g1: nx.Graph, g2: nx.Graph, match_stereo: bool) -> bool:
-    if nx.is_isomorphic(g1, g2, _node_match, _edge_match):
+def _graph_hydrogens(g: nx.Graph) -> list:
+    return [n for n, attr in g.nodes(data=True) if attr.get('symbol') == 'H']
+
+
+def compare_component(g1: nx.Graph, g2: nx.Graph, match_stereo: bool) -> bool:
+    g1_no_h = g1.copy()
+    g2_no_h = g2.copy()
+    g1_no_h.remove_nodes_from(_graph_hydrogens(g1_no_h))
+    g2_no_h.remove_nodes_from(_graph_hydrogens(g2_no_h))
+    if nx.is_isomorphic(g1_no_h, g2_no_h, _node_match, _edge_match):
         if match_stereo:
             try:
                 return _graph_to_smiles(g1) == _graph_to_smiles(g2)
@@ -131,8 +139,7 @@ def compare(diagram1, diagram2, match_stereo = True) -> bool:
 
     # Check if every component in g1 matches a unique component in g2.
     for c1 in cs1:
-        match = (i for i, c2 in enumerate(cs2) if
-                 compare_components(c1, c2, match_stereo))
+        match = (i for i, c2 in enumerate(cs2) if compare_component(c1, c2, match_stereo))
         index = next(match, None)
         if index is None:
             return False
@@ -147,7 +154,7 @@ def validate(diagram) -> bool:
     try:
         json_to_mol(diagram)
         return True
-    except ValueError:
+    except:
         return False
 
 
