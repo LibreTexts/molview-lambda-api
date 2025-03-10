@@ -103,13 +103,9 @@ def _node_match(v1, v2):
     return all(map(lambda p: v1.get(p[0], p[1]) == v2.get(p[0], p[1]), props))
 
 
-def _edge_match(e1, e2):
-    return e1['type'] == e2['type']
-
-
-def _graph_to_smiles(g: nx.Graph) -> str:
+def _graph_to_smiles(g: nx.Graph, isomeric = True) -> str:
     mol = Chem.RemoveHs(graph_to_mol(g))
-    return Chem.rdmolfiles.MolToSmiles(mol, isomericSmiles=True)
+    return Chem.rdmolfiles.MolToSmiles(mol, isomericSmiles=isomeric)
 
 
 def _graph_hydrogens(g: nx.Graph) -> list:
@@ -121,14 +117,14 @@ def compare_component(g1: nx.Graph, g2: nx.Graph, match_stereo: bool) -> bool:
     g2_no_h = g2.copy()
     g1_no_h.remove_nodes_from(_graph_hydrogens(g1_no_h))
     g2_no_h.remove_nodes_from(_graph_hydrogens(g2_no_h))
-    if nx.is_isomorphic(g1_no_h, g2_no_h, _node_match, _edge_match):
-        if match_stereo:
-            try:
-                return _graph_to_smiles(g1) == _graph_to_smiles(g2)
-            except ValueError:
-                return False
-        else:
-            return True
+    # Don't compare edge types to avoid filtering resonance structures.
+    if nx.is_isomorphic(g1_no_h, g2_no_h, _node_match):
+        try:
+            smi1 = _graph_to_smiles(g1, match_stereo)
+            smi2 = _graph_to_smiles(g2, match_stereo)
+            return smi1 == smi2
+        except ValueError:
+            return False
 
 
 def compare(diagram1, diagram2, match_stereo = True) -> bool:
