@@ -81,7 +81,14 @@ def graph_to_mol(g: nx.Graph) -> Chem.rdchem.RWMol:
     mol = mol.GetMol()
     mol.AddConformer(conf)
 
-    Chem.SanitizeMol(mol)
+    # SanitizeMol applies some standardizations and sets some fields. This is
+    # critical for subsequent stereochemistry operations. However, we don't want
+    # to fail if non-standard valences are used (Example: ClF3).
+    try:
+        Chem.SanitizeMol(mol)
+    except:
+        pass
+
     Chem.DetectBondStereochemistry(mol)
     Chem.AssignChiralTypesFromBondDirs(mol)
     Chem.AssignStereochemistry(mol)
@@ -109,7 +116,9 @@ def _graph_to_smiles(g: nx.Graph, isomeric = True) -> str:
 
 
 def _graph_hydrogens(g: nx.Graph) -> list:
-    return [n for n, attr in g.nodes(data=True) if attr.get('symbol') == 'H']
+    # Remove hydrogens _when all other attributes are empty_.
+    return [n for n, attr in g.nodes(data=True) if attr['symbol'] == 'H'
+            and attr['formal_charge'] == 0 and attr['non_bonded_ve'] == 0]
 
 
 def compare_component(g1: nx.Graph, g2: nx.Graph, match_stereo: bool) -> bool:
@@ -119,12 +128,15 @@ def compare_component(g1: nx.Graph, g2: nx.Graph, match_stereo: bool) -> bool:
     g2_no_h.remove_nodes_from(_graph_hydrogens(g2_no_h))
     # Don't compare edge types to avoid filtering resonance structures.
     if nx.is_isomorphic(g1_no_h, g2_no_h, _node_match):
+        # This can fail because of non-standard valences, like in ClF3, which is
+        # not supported by RDKit. Therefore, in the case of an error, we default
+        # to accepting the bare isomorphism.
         try:
             smi1 = _graph_to_smiles(g1, match_stereo)
             smi2 = _graph_to_smiles(g2, match_stereo)
             return smi1 == smi2
         except ValueError:
-            return False
+            return True
 
 
 def compare(diagram1, diagram2, match_stereo = True) -> bool:

@@ -1,0 +1,54 @@
+{
+  "atoms": [
+    {
+      "symbol": "Cl",
+      "position": [
+        27.33203125,
+        15.938812017440796
+      ],
+      "non_bonded_ve": 4
+    },
+    {
+      "symbol": "F",
+      "position": [
+        25.053345680236816,
+        -67.7200471162796
+      ],
+      "non_bonded_ve": 6
+    },
+    {
+      "symbol": "F",
+      "position": [
+        -70.32421875,
+        11.055999517440796
+      ],
+      "non_bonded_ve": 6
+    },
+    {
+      "symbol": "F",
+      "position": [
+        24.076783180236816,
+        94.38937258720398
+      ],
+      "non_bonded_ve": 6
+    }
+  ],
+  "bonds": [
+    {
+      "type": "single",
+      "from": 1,
+      "to": 0
+    },
+    {
+      "type": "single",
+      "from": 2,
+      "to": 0
+    },
+    {
+      "type": "single",
+      "from": 3,
+      "to": 0
+    }
+  ],
+  "arrows": []
+}
