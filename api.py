@@ -50,7 +50,11 @@ def json_to_graph(data) -> nx.Graph:
         })
 
     for bond in data['bonds']:
-        g.add_edge(bond['from'], bond['to'], type=bond['type'])
+        if 'atoms' in bond:
+            u, v = bond['atoms']
+            g.add_edge(u, v, type=bond['type'])
+        else:
+            g.add_edge(bond['from'], bond['to'], type=bond['type'])
 
     return g
 
