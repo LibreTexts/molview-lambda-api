@@ -1,0 +1,97 @@
+{
+  "atoms": [
+    {
+      "symbol": "C",
+      "position": [
+        26.29065846990227,
+        -164.39914426820792
+      ]
+    },
+    {
+      "symbol": "C",
+      "position": [
+        76.29065846990228,
+        -251.00168464665177
+      ]
+    },
+    {
+      "symbol": "C",
+      "position": [
+        214.17504336272594,
+        -263.5381388499532
+      ]
+    },
+    {
+      "symbol": "C",
+      "position": [
+        106.24146055195496,
+        168.99570041395157
+      ],
+      "formal_charge": -1
+    },
+    {
+      "symbol": "C",
+      "position": [
+        176.9521386706097,
+        98.28502229529683
+      ]
+    }
+  ],
+  "bonds": [
+    {
+      "atoms": [
+        0,
+        1
+      ],
+      "type": "double"
+    },
+    {
+      "atoms": [
+        2,
+        1
+      ],
+      "type": "single"
+    },
+    {
+      "atoms": [
+        3,
+        4
+      ],
+      "type": "single"
+    }
+  ],
+  "arrows": [
+    {
+      "type": "electron_single",
+      "start": {
+        "atom": 3
+      },
+      "end": {
+        "atom": 4
+      },
+      "path": {
+        "type": "quadratic",
+        "relative_control_point": [
+          0.5000000000000002,
+          1.2000000000000004
+        ]
+      }
+    },
+    {
+      "type": "electron_pair",
+      "start": {
+        "bond": 0
+      },
+      "end": {
+        "bond": 1
+      },
+      "path": {
+        "type": "quadratic",
+        "relative_control_point": [
+          0.5,
+          1.1297516659891702
+        ]
+      }
+    }
+  ]
+}
