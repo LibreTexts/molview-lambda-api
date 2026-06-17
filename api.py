@@ -52,16 +52,31 @@ def attach_arrow_endpoint(g: nx.Graph, endpoint, anchor, bonds):
         g.edges[(i,j)]['attached_to_arrow'] = True
 
 
+def lone_pairs(atom: dict):
+    if 'non_bonded_ve' in atom:
+        return atom['non_bonded_ve'] // 2
+    else:
+        return atom.get('lone_pairs', 0)
+
+
+def unpaired_electrons(atom: dict):
+    if 'non_bonded_ve' in atom:
+        return atom['non_bonded_ve'] % 2
+    else:
+        return atom.get('unpaired_electrons', 0)
+
+
 def json_to_graph(diagram, add_arrows=False) -> nx.Graph:
     g = nx.Graph()
 
     for i, atom in enumerate(diagram['atoms']):
-        g.add_node(i, **{
+        g.add_node(atom.get('id') or i, **{
             'type': 'atom',
-            'symbol': atom['symbol'],
+            'label': atom.get('label') or atom['symbol'],
             'position': read_vec2(atom['position']),
             'formal_charge': atom.get('formal_charge', 0),
-            'non_bonded_ve': atom.get('non_bonded_ve', 0)
+            'lone_pairs': lone_pairs(atom),
+            'unpaired_electrons': unpaired_electrons(atom)
         })
 
     for bond in diagram['bonds']:
@@ -92,7 +107,7 @@ def graph_to_mol(g: nx.Graph) -> Chem.rdchem.RWMol:
 
     for i, attr in g.nodes(data=True):
         if attr['type'] == 'atom':
-            a = Chem.rdchem.Atom(attr['symbol'])
+            a = Chem.rdchem.Atom(attr['label'])
             a.SetFormalCharge(attr['formal_charge'])
             atom_index = mol.AddAtom(a)
             atoms[i] = atom_index
@@ -140,10 +155,10 @@ def match_nodes(v1, v2):
     if v1['type'] == 'atom':
         return match_props(v1, v2, [
             ['type', ''],
-            ['symbol', ''],
+            ['label', ''],
             ['formal_charge', 0],
-            ['non_bonded_ve', 0],
-            ['mark', -1]
+            ['lone_pairs', 0],
+            ['unpaired_electrons', 0]
         ])
     elif v1['type'] == 'arrow':
         return match_props(v1, v2, [
@@ -174,9 +189,9 @@ def graph_basic_hydrogens(g: nx.Graph) -> list:
     # Select hdrogen atoms _where all other attributes are empty_.
     return [v for v, attr in g.nodes(data=True) if
             attr['type'] == 'atom' and
-            attr['symbol'] == 'H' and
+            attr['label'] == 'H' and
             attr['formal_charge'] == 0 and
-            attr['non_bonded_ve'] == 0]
+            attr['unpaired_electrons'] == 0]
 
 
 def compare_component(g1: nx.Graph, g2: nx.Graph, match_stereo: bool) -> bool:
@@ -196,6 +211,9 @@ def compare_component(g1: nx.Graph, g2: nx.Graph, match_stereo: bool) -> bool:
             return smi1 == smi2
         except ValueError:
             return True
+
+    else:
+        return False
 
 
 def compare(diagram1, diagram2, match_stereo = True) -> bool:
@@ -222,7 +240,7 @@ def validate(diagram) -> bool:
     try:
         json_to_mol(diagram)
         return True
-    except:
+    except Exception:
         return False
 
 
