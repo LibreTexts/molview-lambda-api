@@ -4,10 +4,13 @@ from os import environ
 from dotenv import load_dotenv
 from rdkit import Chem
 from rdkit import RDLogger
+from rdkit.Chem import AllChem, rdmolops, Descriptors
 
 
 RDLogger.DisableLog('rdApp.*')
 
+
+# === Reading MolView diagram JSON ===
 
 bond_type = {
     'single': Chem.rdchem.BondType.SINGLE,
@@ -24,22 +27,32 @@ bond_dir = {
 }
 
 
-def check_authorization(provided_key: str) -> bool:
-    allowed_key = environ.get('API_KEY')
-    if not allowed_key:
-        return False
-    return provided_key == allowed_key
-
-
-def read_vec2(data) -> tuple[float, float]:
+def vec2(data) -> tuple[float, float]:
     if isinstance(data, list):
         return (data[0] / 100, data[1] / 100)
     else:
         return (data['x'] / 100, data['y'] / 100)
 
 
+def lone_pairs(atom: dict):
+    if 'non_bonded_ve' in atom:
+        return atom['non_bonded_ve'] // 2
+    else:
+        return atom.get('lone_pairs', 0)
+
+
+def unpaired_electrons(atom: dict):
+    if 'non_bonded_ve' in atom:
+        return atom['non_bonded_ve'] % 2
+    else:
+        return atom.get('unpaired_electrons', 0)
+
+
 def bond_edge(bond):
-    return bond['atoms'] if 'atoms' in bond else [bond['from'], bond['to']]
+    if 'atoms' in bond:
+        return bond['atoms']
+    else:
+        return [bond['from'], bond['to']]
 
 
 def attach_arrow_endpoint(g: nx.Graph, endpoint, anchor, bonds):
@@ -56,12 +69,13 @@ def json_to_graph(diagram, add_arrows=False) -> nx.Graph:
     g = nx.Graph()
 
     for i, atom in enumerate(diagram['atoms']):
-        g.add_node(i, **{
+        g.add_node(atom.get('id') or i, **{
             'type': 'atom',
-            'symbol': atom['symbol'],
-            'position': read_vec2(atom['position']),
+            'label': atom.get('label') or atom['symbol'],
+            'position': vec2(atom['position']),
             'formal_charge': atom.get('formal_charge', 0),
-            'non_bonded_ve': atom.get('non_bonded_ve', 0)
+            'lone_pairs': lone_pairs(atom),
+            'unpaired_electrons': unpaired_electrons(atom)
         })
 
     for bond in diagram['bonds']:
@@ -92,7 +106,7 @@ def graph_to_mol(g: nx.Graph) -> Chem.rdchem.RWMol:
 
     for i, attr in g.nodes(data=True):
         if attr['type'] == 'atom':
-            a = Chem.rdchem.Atom(attr['symbol'])
+            a = Chem.rdchem.Atom(attr['label'])
             a.SetFormalCharge(attr['formal_charge'])
             atom_index = mol.AddAtom(a)
             atoms[i] = atom_index
@@ -131,6 +145,9 @@ def json_to_mol(data) -> Chem.rdchem.RWMol:
    return graph_to_mol(json_to_graph(data))
 
 
+# === Utilities based on NetworkX ===
+
+
 def match_props(x, y, props):
     return all(map(lambda p: x.get(p[0], p[1]) == y.get(p[0], p[1]), props))
 
@@ -140,10 +157,10 @@ def match_nodes(v1, v2):
     if v1['type'] == 'atom':
         return match_props(v1, v2, [
             ['type', ''],
-            ['symbol', ''],
+            ['label', ''],
             ['formal_charge', 0],
-            ['non_bonded_ve', 0],
-            ['mark', -1]
+            ['lone_pairs', 0],
+            ['unpaired_electrons', 0]
         ])
     elif v1['type'] == 'arrow':
         return match_props(v1, v2, [
@@ -165,18 +182,13 @@ def match_edges(e1, e2):
         return True
 
 
-def graph_to_smiles(g: nx.Graph, isomeric = True) -> str:
-    mol = Chem.RemoveHs(graph_to_mol(g))
-    return Chem.rdmolfiles.MolToSmiles(mol, isomericSmiles=isomeric)
-
-
 def graph_basic_hydrogens(g: nx.Graph) -> list:
     # Select hdrogen atoms _where all other attributes are empty_.
     return [v for v, attr in g.nodes(data=True) if
             attr['type'] == 'atom' and
-            attr['symbol'] == 'H' and
+            attr['label'] == 'H' and
             attr['formal_charge'] == 0 and
-            attr['non_bonded_ve'] == 0]
+            attr['unpaired_electrons'] == 0]
 
 
 def compare_component(g1: nx.Graph, g2: nx.Graph, match_stereo: bool) -> bool:
@@ -185,20 +197,46 @@ def compare_component(g1: nx.Graph, g2: nx.Graph, match_stereo: bool) -> bool:
     g1_no_h.remove_nodes_from(graph_basic_hydrogens(g1_no_h))
     g2_no_h.remove_nodes_from(graph_basic_hydrogens(g2_no_h))
 
-    # Don't compare edge types to avoid filtering resonance structures.
+    # Don't compare bond types to avoid filtering resonance structures.
     if nx.is_isomorphic(g1_no_h, g2_no_h, match_nodes, match_edges):
         # This can fail because of non-standard valences, like in ClF3, which is
         # not supported by RDKit. Therefore, in the case of an error, we default
         # to accepting the bare isomorphism.
         try:
-            smi1 = graph_to_smiles(g1, match_stereo)
-            smi2 = graph_to_smiles(g2, match_stereo)
+            smi1 = get_smiles(graph_to_mol(g1), match_stereo)
+            smi2 = get_smiles(graph_to_mol(g2), match_stereo)
             return smi1 == smi2
         except ValueError:
             return True
 
+    else:
+        return False
 
-def compare(diagram1, diagram2, match_stereo = True) -> bool:
+
+# === Utilities based on RDKit ===
+
+
+def get_smiles(mol: Chem.Mol, isomeric=True) -> str:
+    mol = Chem.RemoveHs(mol)
+    return Chem.MolToSmiles(mol, isomericSmiles=isomeric)
+
+
+def get_fragments(mol):
+    return rdmolops.GetMolFrags(mol, asMols=True)
+
+
+# === Main operations ===
+
+
+def validate(diagram) -> bool:
+    try:
+        json_to_mol(diagram)
+        return True
+    except Exception:
+        return False
+
+
+def compare(diagram1, diagram2, match_stereo=True) -> bool:
     g1 = json_to_graph(diagram1, True)
     g2 = json_to_graph(diagram2, True)
     cs1 = list(map(lambda c: g1.subgraph(c), nx.connected_components(g1)))
@@ -218,27 +256,23 @@ def compare(diagram1, diagram2, match_stereo = True) -> bool:
     return len(cs2) == 0
 
 
-def validate(diagram) -> bool:
-    try:
-        json_to_mol(diagram)
-        return True
-    except:
+def evaluate(diagram, evaluator, params):
+    mol = json_to_mol(diagram)
+    match evaluator:
+        case 'NumMols':
+            return len(set(map(get_smiles, get_fragments(mol))))
+        case _:
+            return {'err': 'Unknown evaluator'}
+
+
+# === AWS Lambda handler ===
+
+
+def check_authorization(provided_key: str) -> bool:
+    allowed_key = environ.get('API_KEY')
+    if not allowed_key:
         return False
-
-
-def handle_validate(body):
-    return {
-        'valid': validate(body['diagram'])
-    }
-
-
-def handle_compare(body):
-    return {
-        'equal': compare(
-            body['reference_diagram'],
-            body['student_diagram'],
-            body['match_stereo'])
-    }
+    return provided_key == allowed_key
 
 
 def handler(event, context):
@@ -268,11 +302,27 @@ def handler(event, context):
         request_path_raw: str = event.get('requestContext', {}).get('path', '')
         request_path = request_path_raw.replace('/api/v1/', '')
         request_body = json.loads(event['body'])
+
         match request_path:
             case 'compare':
-                response_body = handle_compare(request_body)
+                response_body = {
+                    'equal': compare(
+                        request_body['reference_diagram'],
+                        request_body['student_diagram'],
+                        request_body['match_stereo'])
+                }
             case 'validate':
-                response_body = handle_validate(request_body)
+                response_body = {
+                    'valid': validate(
+                        request_body['diagram'])
+                }
+            case 'evaluate':
+                response_body = {
+                    'result': evaluate(
+                        request_body['diagram'],
+                        request_body['evaluator'],
+                        request_body['params'])
+                }
             case _:
                 response_body = {'err': 'Invalid request'}
 
