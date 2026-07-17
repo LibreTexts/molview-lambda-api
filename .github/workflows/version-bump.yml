@@ -1,0 +1,41 @@
+name: Version Bump and Build
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.LIBREBOT_ACCESS_TOKEN }}
+      - name: Configure git as LibreBot
+        run: |
+          git config user.name "libretexts-bot"
+          git config user.email "dev@libretexts.org"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install bump-my-version
+        run: pip install bump-my-version
+      - name: Bump minor version
+        run: bump-my-version bump minor
+      - name: Capture new version
+        id: version
+        run: echo "value=$(bump-my-version show current_version)" >> "$GITHUB_OUTPUT"
+  build:
+    needs: bump
+    uses: ./.github/workflows/docker.yml
+    with:
+      version: ${{needs.bump.outputs.version}}
+    secrets: inherit

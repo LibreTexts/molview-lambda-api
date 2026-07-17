@@ -1,0 +1,15 @@
+[project]
+name = "molview-lambda-api"
+version = "1.10.0"
+
+[tool.bumpversion]
+current_version = "1.10.0"
+commit = true
+tag = true
+commit_args = "-m 'chore(release): {new_version} [skip ci]'"
+tag_name = "{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
