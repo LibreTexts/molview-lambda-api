@@ -34,6 +34,8 @@ jobs:
       - name: Capture new version
         id: version
         run: echo "value=$(bump-my-version show current_version)" >> "$GITHUB_OUTPUT"
+      - name: Push changes and tag
+        run: git push --follow-tags origin main
     outputs:
       version: ${{ steps.version.outputs.value }}
   build:
