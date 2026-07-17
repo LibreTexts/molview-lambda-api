@@ -34,9 +34,11 @@ jobs:
       - name: Capture new version
         id: version
         run: echo "value=$(bump-my-version show current_version)" >> "$GITHUB_OUTPUT"
+    outputs:
+      version: ${{ steps.version.outputs.value }}
   build:
     needs: bump
     uses: ./.github/workflows/docker.yml
     with:
-      version: ${{needs.bump.outputs.version}}
+      version: ${{ needs.bump.outputs.version }}
     secrets: inherit
