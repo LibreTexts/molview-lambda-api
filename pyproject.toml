@@ -1,9 +1,9 @@
 [project]
 name = "molview-lambda-api"
-version = "1.13.0"
+version = "1.14.0"
 
 [tool.bumpversion]
-current_version = "1.13.0"
+current_version = "1.14.0"
 commit = true
 tag = true
 message = "chore(release): {new_version} [skip ci]"
