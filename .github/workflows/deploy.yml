@@ -35,11 +35,11 @@ jobs:
           aws-region: us-east-1
           aws-access-key-id: ${{ secrets.AWS_DEPLOY_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_DEPLOY_SECRET_ACCESS_KEY }}
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
       - name: Deploy CloudFormation stack
         uses: aws-actions/aws-cloudformation-github-deploy@81e3b03d2266bcb76c4bcc37a7d71d9cb67838bb # v2.2.0
         with:
           name: ${{ vars.AWS_STACK_NAME }}
           template: infra/molview/api.json
+          role-arn: ${{ secrets.AWS_ROLE_ARN }}
           capabilities: 'CAPABILITY_NAMED_IAM'
           parameter-overrides: 'MolViewApiEnvironment=${{ inputs.environment }},MolViewApiImage=ghcr.io/libretexts/molview-lambda-api:${{ inputs.version }}'
